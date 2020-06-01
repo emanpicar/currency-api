@@ -41,7 +41,6 @@ func (dbHandler *dbHandler) connect(openConnection func(dialect string, args ...
 	))
 
 	if err != nil {
-		logger.Log.Infoln("##########")
 		logger.Log.Fatalln(err)
 	}
 

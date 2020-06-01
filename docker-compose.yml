@@ -14,9 +14,9 @@ services:
     # volumes:
       # - ./postgres-data:/var/lib/postgresql/data
   
-  minimart_api:
+  currency_api:
     build: .
-    container_name: "minimart_api"
+    container_name: "currency_api"
     restart: always
     environment:
       - DB_HOST=currency_api_db

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/emanpicar/currency-api/auth"
 	"github.com/emanpicar/currency-api/db"
 	"github.com/emanpicar/currency-api/envelope"
 	"github.com/emanpicar/currency-api/logger"
@@ -12,20 +13,22 @@ import (
 )
 
 func main() {
+	// revert DBhost, XMLurl
+	// Missing UTs
+
 	logger.Init(settings.GetLogLevel())
 	logger.Log.Infoln("Initializing Currency API")
 
 	dbManager := db.NewManager()
 	envelopeManager := envelope.NewManager(dbManager)
+	authHandler := auth.NewManager()
 
 	envelopeManager.UpsertInitialData()
-	// envelopeManager.GetLatestRates()
-	// envelopeManager.GetAnalyzedRates()
 
 	logger.Log.Fatal(http.ListenAndServeTLS(
 		fmt.Sprintf("%v:%v", settings.GetServerHost(), settings.GetServerPort()),
 		settings.GetServerPublicKey(),
 		settings.GetServerPrivateKey(),
-		routes.NewRouter(envelopeManager),
+		routes.NewRouter(envelopeManager, authHandler),
 	))
 }

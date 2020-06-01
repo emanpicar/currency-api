@@ -33,6 +33,7 @@ func NewManager(dbManager db.Manager) Manager {
 }
 
 func (e *Envelope) UpsertInitialData() {
+	logger.Log.Infoln("Upserting initial data started")
 	env, err := e.downloadXMLData()
 	if err != nil {
 		logger.Log.Warnf("Unable to download xml data %v", err)
@@ -42,32 +43,40 @@ func (e *Envelope) UpsertInitialData() {
 	dbEnvelopeList := e.convertXMLtoDBEntities(env)
 	e.dbManager.BatchFirstOrCreate(&dbEnvelopeList)
 
-	logger.Log.Infof("Successfully inserted initial data")
+	logger.Log.Infoln("Upserting initial data completed")
 }
 
 func (e *Envelope) GetLatestRates() (string, error) {
+	logger.Log.Infoln("Request on getting latest rates started")
+
 	envelope, err := e.dbManager.GetLatestRates()
 	if err != nil {
 		return "", err
 	}
 
 	jsonResult := e.sortRatesThenToString(envelope)
+	logger.Log.Infof("Latest rates data available, sender name: %v", envelope.SenderName)
 
 	return jsonResult, nil
 }
 
 func (e *Envelope) GetRatesByDate(cubeTime string) (string, error) {
+	logger.Log.Infof("Request on getting rates by date: %v started", cubeTime)
+
 	envelope, err := e.dbManager.GetRatesByDate(cubeTime)
 	if err != nil {
 		return "", err
 	}
 
 	jsonResult := e.sortRatesThenToString(envelope)
+	logger.Log.Infof("%v - rates data available, sender name: %v", cubeTime, envelope.SenderName)
 
 	return jsonResult, nil
 }
 
 func (e *Envelope) GetAnalyzedRates() (*jsondata.QuantitativeExchangeRate, error) {
+	logger.Log.Infoln("Request on getting analyzed rates started")
+
 	analyzedResult, err := e.dbManager.GetAnalyzedRates()
 	if err != nil {
 		return nil, err
@@ -85,6 +94,7 @@ func (e *Envelope) GetAnalyzedRates() (*jsondata.QuantitativeExchangeRate, error
 			Avg: cube.Avg,
 		}
 	}
+	logger.Log.Infof("Analyzed rates data available, sender name: %v", analyzedResult.Base)
 
 	return jsonResult, nil
 }
@@ -147,6 +157,7 @@ func (e *Envelope) downloadXMLData() (*xmldata.Envelope, error) {
 }
 
 func (e *Envelope) useDemoData() *xmldata.Envelope {
+	logger.Log.Warnf("Starting insertion of xml demo data")
 	env := &xmldata.Envelope{}
 
 	data, err := ioutil.ReadFile(settings.GetXMLDataFilePath())

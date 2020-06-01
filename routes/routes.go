@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/emanpicar/currency-api/auth"
+	"github.com/emanpicar/currency-api/entities/jsondata"
 	"github.com/emanpicar/currency-api/envelope"
 	"github.com/emanpicar/currency-api/logger"
 	"github.com/gorilla/mux"
@@ -16,12 +18,13 @@ type (
 
 	routeHandler struct {
 		envelopeManager envelope.Manager
+		authManager     auth.Manager
 		router          *mux.Router
 	}
 )
 
-func NewRouter(envelopeManager envelope.Manager) Router {
-	routeHandler := &routeHandler{envelopeManager: envelopeManager}
+func NewRouter(envelopeManager envelope.Manager, authManager auth.Manager) Router {
+	routeHandler := &routeHandler{envelopeManager: envelopeManager, authManager: authManager}
 
 	return routeHandler.newRouter(mux.NewRouter())
 }
@@ -33,44 +36,79 @@ func (rh *routeHandler) newRouter(router *mux.Router) *mux.Router {
 }
 
 func (rh *routeHandler) registerRoutes(router *mux.Router) {
-	// router.HandleFunc("/api/authenticate", rh.authenticate).Methods("POST")
-	router.HandleFunc("/rates/latest", rh.getLatestRates).Methods(http.MethodGet)
-	router.HandleFunc("/rates/analyze", rh.getAnalyzedRates).Methods(http.MethodGet)
-	router.HandleFunc("/rates/{cubeTime}", rh.getRatesByDate).Methods(http.MethodGet)
+	router.HandleFunc("/api/auth", rh.authenticate).Methods("POST")
+	router.HandleFunc("/rates/latest", rh.authMiddleware(rh.getLatestRates)).Methods(http.MethodGet)
+	router.HandleFunc("/rates/analyze", rh.authMiddleware(rh.getAnalyzedRates)).Methods(http.MethodGet)
+	router.HandleFunc("/rates/{cubeTime:[0-9]{4}-[0-9]{2}-[0-9]{2}}", rh.authMiddleware(rh.getRatesByDate)).Methods(http.MethodGet)
 
 	rh.router = router
+}
+
+func (rh *routeHandler) authenticate(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	data, err := rh.authManager.Authenticate(r.Body)
+	if err != nil {
+		rh.badRequest(err, w)
+		return
+	}
+
+	rh.encodeError(json.NewEncoder(w).Encode(data), w)
 }
 
 func (rh *routeHandler) getLatestRates(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	result, err := rh.envelopeManager.GetLatestRates()
-	rh.encodeError(err, w)
+	if err != nil {
+		rh.badRequest(err, w)
+		return
+	}
 
 	w.Write([]byte(result))
 }
 
 func (rh *routeHandler) getRatesByDate(w http.ResponseWriter, r *http.Request) {
-	logger.Log.Infof("Getting rates by date: %v", mux.Vars(r)["cubeTime"])
-
 	w.Header().Set("Content-Type", "application/json")
 	result, err := rh.envelopeManager.GetRatesByDate(mux.Vars(r)["cubeTime"])
-	rh.encodeError(err, w)
+	if err != nil {
+		rh.badRequest(err, w)
+		return
+	}
 
 	w.Write([]byte(result))
 }
 
 func (rh *routeHandler) getAnalyzedRates(w http.ResponseWriter, r *http.Request) {
-	logger.Log.Infoln("Getting all products")
-
 	w.Header().Set("Content-Type", "application/json")
 	result, err := rh.envelopeManager.GetAnalyzedRates()
-	rh.encodeError(err, w)
+	if err != nil {
+		rh.badRequest(err, w)
+		return
+	}
 
 	rh.encodeError(json.NewEncoder(w).Encode(result), w)
 }
 
+func (rh *routeHandler) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := rh.authManager.ValidateRequest(r)
+		if err != nil {
+			rh.badRequest(err, w)
+			return
+		}
+
+		next(w, r)
+	})
+}
+
 func (rh *routeHandler) encodeError(err error, w http.ResponseWriter) {
 	if err != nil {
+		logger.Log.Warnf("Error occurred: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func (rh *routeHandler) badRequest(err error, w http.ResponseWriter) {
+	logger.Log.Warnf("Error occurred: %v", err)
+	w.WriteHeader(http.StatusBadRequest)
+	rh.encodeError(json.NewEncoder(w).Encode(&jsondata.ResponseMessage{err.Error()}), w)
 }

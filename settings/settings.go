@@ -21,7 +21,7 @@ func GetDBName() string {
 }
 
 func GetDBHost() string {
-	return getEnv("DB_HOST", "localhost")
+	return getEnv("DB_HOST", "10.1.9.164")
 }
 
 func GetDBPort() string {
