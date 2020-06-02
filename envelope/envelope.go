@@ -131,7 +131,7 @@ func (e *Envelope) downloadXMLData() (*xmldata.Envelope, error) {
 
 	resp, err := http.Get(settings.GetXMLDataURLPath())
 	if err != nil {
-		return nil, fmt.Errorf("Error downloading xml data: %v", err.Error())
+		return nil, err
 	}
 
 	defer resp.Body.Close()

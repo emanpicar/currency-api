@@ -17,6 +17,7 @@ FROM scratch
 
 WORKDIR /root/
 
+COPY --from=0 /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=0 /go/src/github.com/emanpicar/currency-api .
 
 CMD ["./currency-api"]

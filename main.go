@@ -13,9 +13,6 @@ import (
 )
 
 func main() {
-	// revert DBhost, XMLurl
-	// readME
-
 	logger.Init(settings.GetLogLevel())
 	logger.Log.Infoln("Initializing Currency API")
 
