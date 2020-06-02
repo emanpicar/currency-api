@@ -21,7 +21,7 @@ func GetDBName() string {
 }
 
 func GetDBHost() string {
-	return getEnv("DB_HOST", "10.1.9.164")
+	return getEnv("DB_HOST", "localhost")
 }
 
 func GetDBPort() string {
@@ -37,7 +37,7 @@ func GetDBPass() string {
 }
 
 func GetXMLDataURLPath() string {
-	return getEnv("XML_URL_PATH", "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist-90d.xml1")
+	return getEnv("XML_URL_PATH", "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist-90d.xml")
 }
 
 func GetXMLDataFilePath() string {

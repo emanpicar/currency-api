@@ -36,10 +36,10 @@ func (rh *routeHandler) newRouter(router *mux.Router) *mux.Router {
 }
 
 func (rh *routeHandler) registerRoutes(router *mux.Router) {
-	router.HandleFunc("/api/auth", rh.authenticate).Methods("POST")
-	router.HandleFunc("/rates/latest", rh.authMiddleware(rh.getLatestRates)).Methods(http.MethodGet)
-	router.HandleFunc("/rates/analyze", rh.authMiddleware(rh.getAnalyzedRates)).Methods(http.MethodGet)
-	router.HandleFunc("/rates/{cubeTime:[0-9]{4}-[0-9]{2}-[0-9]{2}}", rh.authMiddleware(rh.getRatesByDate)).Methods(http.MethodGet)
+	router.HandleFunc("/api/auth", rh.authenticate).Methods(http.MethodPost).Name("Auth")
+	router.HandleFunc("/rates/latest", rh.authMiddleware(rh.getLatestRates)).Methods(http.MethodGet).Name("RatesLatest")
+	router.HandleFunc("/rates/analyze", rh.authMiddleware(rh.getAnalyzedRates)).Methods(http.MethodGet).Name("RatesAnalyze")
+	router.HandleFunc("/rates/{cubeTime:[0-9]{4}-[0-9]{2}-[0-9]{2}}", rh.authMiddleware(rh.getRatesByDate)).Methods(http.MethodGet).Name("RatesByDate")
 
 	rh.router = router
 }

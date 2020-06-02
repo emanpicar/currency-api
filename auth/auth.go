@@ -21,7 +21,15 @@ type (
 		ValidateRequest(r *http.Request) error
 	}
 
-	authHandler struct{}
+	jwtManager interface {
+		generateJwtToken(mapClaims jwt.MapClaims) (string, error)
+		parseJwtToken(tokenString string) error
+	}
+
+	authHandler struct {
+		jwtManager jwtManager
+	}
+	jwtHandler struct{}
 
 	User struct {
 		Username string `json:"username"`
@@ -30,7 +38,11 @@ type (
 )
 
 func NewManager() Manager {
-	return &authHandler{}
+	return &authHandler{newJwtManager()}
+}
+
+func newJwtManager() jwtManager {
+	return &jwtHandler{}
 }
 
 func (a *authHandler) Authenticate(body io.ReadCloser) (string, error) {
@@ -44,13 +56,13 @@ func (a *authHandler) Authenticate(body io.ReadCloser) (string, error) {
 		return "", errors.New("Invalid user username/password")
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+	mapClaims := jwt.MapClaims{
 		"username":   user.Username,
 		"authorized": true,
 		"exp":        time.Now().Add(time.Hour * 24).Unix(),
-	})
+	}
 
-	tokenString, err := token.SignedString([]byte(settings.GetTokenSecret()))
+	tokenString, err := a.jwtManager.generateJwtToken(mapClaims)
 	if err != nil {
 		return "", err
 	}
@@ -70,19 +82,9 @@ func (a *authHandler) ValidateRequest(r *http.Request) error {
 		return errors.New("Cannot parse authorization header")
 	}
 
-	token, err := jwt.Parse(bearerToken[1], func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(settings.GetTokenSecret()), nil
-	})
-
+	err := a.jwtManager.parseJwtToken(bearerToken[1])
 	if err != nil {
 		return err
-	}
-
-	if !token.Valid {
-		return errors.New("Invalid authorization token")
 	}
 
 	return nil
@@ -103,4 +105,34 @@ func (a *authHandler) inMemoryAuthentication(userCreds User) bool {
 	}
 
 	return false
+}
+
+func (j *jwtHandler) generateJwtToken(mapClaims jwt.MapClaims) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, mapClaims)
+
+	tokenString, err := token.SignedString([]byte(settings.GetTokenSecret()))
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
+}
+
+func (j *jwtHandler) parseJwtToken(tokenString string) error {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(settings.GetTokenSecret()), nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if !token.Valid {
+		return errors.New("Invalid authorization token")
+	}
+
+	return nil
 }
